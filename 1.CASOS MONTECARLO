@@ -1,0 +1,78 @@
+#MONTE CARLO
+
+#Ejemplo 1
+h1<-function(x){(cos(50*x)+sin(20*x))^2}#definir la función h
+integrate(h1,0,1) 
+
+#valor de la integral usando integración MC
+set.seed(0)
+nsim<-10^2
+x1<-h1(runif(nsim))
+theta1<-mean(x1)
+theta1
+
+#Ejemplo 2
+pnorm(c(2.5), mean = 0, sd = 1) - pnorm(c(-2.5), mean = 0, sd = 1)#valor de la integral 
+h2<-function(x){(5/sqrt(2*pi))*exp(-(2.5*x)^2/2)}#definir la función h
+
+#valor de la integral usando integración MC
+set.seed(0)
+nsim<-10^2
+x2<-h2(runif(nsim))
+theta2<-mean(x2)
+theta2
+
+#Ejemplo 1: Gráficas e intervalos de confianza
+par(mar=c(2,2,2,1),mfrow=c(2,1))#márgenes del área de la gráfica
+curve(h1,xlab="Function",ylab="",lwd=2)
+estint<-cumsum(x1)/(1:10^4)
+esterr<-sqrt(cumsum((x1-estint)^2))/(1:10^4)
+plot(estint, xlab="Media y rango de error",type="l",lwd=
+       2,ylim=mean(x1)+20*c(-esterr[10^4],esterr[10^4]),ylab="")
+lines(estint+1.96*esterr,col="gold",lwd=2)
+lines(estint-1.96*esterr,col="gold",lwd=2)
+
+#Intervalo de confianza al 95%
+l_inf<-estint[10^4]-1.96*esterr[10^4]#límite inferior
+l_inf
+l_sup<-estint[10^4]+1.96*esterr[10^4]#límite superior
+l_sup
+theta1
+
+
+#Ejemplo 2: Gráficas e intervalos de confianza
+par(mar=c(2,2,2,1),mfrow=c(2,1))#márgenes del área de la gráfica
+curve(h2,xlab="Function",ylab="",lwd=2, xlim=c(-3,3))
+
+estint<-cumsum(x2)/(1:10^5)
+esterr<-sqrt(cumsum((x2-estint)^2))/(1:10^5)
+plot(estint, xlab="Media y rango de error",type="l",lwd=
+       2,ylim=mean(x2)+20*c(-esterr[10^5],esterr[10^5]),ylab="")
+lines(estint+1.96*esterr,col="gold",lwd=2)
+lines(estint-1.96*esterr,col="gold",lwd=2)
+
+#Intervalo de confianza al 95%
+l_inf<-estint[10^5]-1.96*esterr[10^4]#límite inferior
+l_inf
+l_sup<-estint[10^5]+1.96*esterr[10^4]#límite superior
+l_sup
+theta2
+
+#Ejemplo 3: Caso tres, soporte infinito
+g<-function(x)(asin(x)+exp(x))#
+
+h<-function(x)(g(1/(x+1))*exp(-x))
+curve(h(x), xlim=c(0,10))
+
+#Cálculo de la integral con la función "integrate"
+integrate(h,0,Inf)
+
+#Integracion MC 
+
+int.1<-function(nsim)
+{
+  munif<-runif(nsim)
+  mean(g(munif)*exp(-((1/munif)-1))*(1/munif)^2)
+}
+
+int.1(10000)
