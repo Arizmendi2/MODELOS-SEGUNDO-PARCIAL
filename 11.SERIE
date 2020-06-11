@@ -1,0 +1,188 @@
+#EJERCICO 1
+#a)valor de la integral calculado en forma cerrada
+f1<-function(x){(1/(sqrt(2*pi)))*exp(-x^2/2)}
+h1<-function(x){exp(-((x-3)^2))+exp(-((x-6)^2)/2)}#definir la función h
+#hacemos f1*h1
+hf<-function(x){((1/(sqrt(2*pi)))*exp(-x^2/2))*(exp(-((x-3)^2))+exp(-((x-6)^2)/2))}
+integrate(hf,-Inf,Inf) 
+#b)por Montecarlo
+set.seed(0)
+nsim<-10^2
+x1<-h1(rnorm(nsim,0,1))
+theta1<-mean(x1)
+theta1
+#con muestro con importancia, ocupamos una U(0,1)
+u<-runif(1000)
+x<-(1/u)-1
+hfn<-(f1(x)*h1(x))/(u^2)
+thetha2<-mean(hfn)
+thetha2
+#otra forma de hacerlo
+hfn<-(f1(x)*h1(x))
+
+
+#EJERCICIO 2
+nsim<-10^4
+xg<-numeric(nsim)
+n<-500
+for (i in 2:nsim){
+  xg[i]<-rgamma(1,n+1,cumsum(xg[i-1])+1)
+}
+hist(xg,breaks=200,freq=F,xlab="X|theta", ylab="Densidad marginal condicional")
+curve(dgamma(x,n+1,))
+
+##otra forma
+Nsim<-5000
+#Asuma que X|\theta sigue una distribución binomial con n=15 y
+##\theta una distribución beta(a=3 y b=7).
+n<-15
+a<-3
+b<-7
+X=Theta<-array(0,dim=c(Nsim,1)) 
+Theta[1]<-(rexp(1,b))/b 
+X[1]<-rexp(1,Theta[1])#cambiar al b
+for (i in 2:Nsim){
+  X[i]<-rexp(1,Theta[i-1])
+  Theta[i]<-rgamma(1,n+1,cumsum(X[i])+1)
+}
+par(mfrow=c(1,2))
+hist(Theta,freq=F,xlab=expression(theta), ylab="Densidad marginal")
+curve(dgamma(x,n+1,),add=T,col="red")
+
+#ejercicio 3
+set.seed(54321)
+I <- function(x) {exp(x^2)}
+teor <- integrate(I,0,1)#(exp(b)-exp(a))/(b-a)
+teor<-teor$value
+teor
+nsim<-2000
+#Solución del ejercicio usando integración montecarlo, AQUI SE ASUME INDEPENDENCIA
+g<-function(x)(exp(x^2)) #YA SE PONE LA MONTECARLO
+x1<-g(runif(nsim))
+theta1<-mean(x1)
+theta1
+#media de simulaciones hasta nsim, SON LOS PROMEDIOS ACUMULADOS
+estint1 <- cumsum(x1)/(1:nsim)
+##usando variables antitéticas
+u <- runif(nsim%/%2)#es el numero de simulaciones, k=2, la mitad es U Y LA OTRA ES 1-U
+#generamos a u y 1-u que se sabe están correlacionadas negativamente
+u<- matrix(c(u,1-u),nrow=2,byrow=TRUE)#se genera la matriz
+fx <- apply(u, 1, g)#ya se mente con la función monete carlo, es 1 porque la aplicacion es por renglones, 
+#si fuera el 2, es porq es por columnas.
+mean(fx) #estimación usando variables antitéticas
+estint2 <- cumsum(fx)/(1:nsim)
+#Gráfico de simulaciones
+plot(estint2, type="l",ylab = "media de simulaciones") 
+lines(estint1,col="red")
+abline(h=teor, lty=2,col="blue" )
+#la negra es las simulaciones con las antiteticas
+#la roja es con las de independencia
+#la linea azul es el valor real de la integral
+#al principo se hace volatil, pero al aumentar el no. de simulaciones se hace constantes, la que
+#converge mas rapido es la negra, que son las de las variables antiteticas
+###comparación de varianzas, esperamos que las varinzas con indep sean mayores a los que no se asume indep
+(var1<-var(x1))
+(var2<-(1/4)*(var(fx[,1])+var(fx[,2])+2*cov(fx[,1],fx[,2])))
+#reducción
+(red <- ((var1 - var2) / var1)*100)
+
+#con varibles de control
+set.seed(54321)
+nsim <- 1000
+u <- runif(nsim)
+expu <- exp(u^2)
+mean(expu) #resultado usando simulación MC
+var(expu)
+plot(u, expu)
+#variables de control
+reg <- lm(expu ~ u)$coef #aqui esta la regresion entre las variables de X y la de la variable control
+reg[2] ### estimación de c* usando regresión
+abline(reg, col='blue')
+reg[1]+reg[2] #aprox de la integral por el método variables control, aqui 
+#reg(2), seria multiplicado por la media pero la media de la U(0,2) ES 1
+expuc <- expu - reg[2]*(u-(1/2))#otra forma de obtener la aproximación
+mean(expuc)
+var(expuc)
+100*(var(expu)-var(expuc))/var(expu)# % de reducción de varianza
+
+
+####ejericico4
+library("bootstrap")
+print(cor(law$LSAT,law$GPA))#correlación muestral de la muestra
+print(cor(law82$LSAT,law82$GPA))#correlación muestral de la población
+law
+n <- nrow(law)
+y<-law$LSAT
+z<-law$GPA
+theta.hat <- cor(y,z)
+print (theta.hat)
+#calcular las réplicas jackknife, estimaciones de dejar uno afuera
+theta.jack <- numeric(n)
+for (i in 1:n){
+  theta.jack[i] <- cor(y[-i],z[-i])}
+bias <- (n - 1) * (mean(theta.jack) - theta.hat)
+
+print(bias)  #estimación del sesgo jackknife 
+### estimación del error estándar jackknife 
+se <- sqrt(((n-1)) *
+             mean((theta.jack - mean(theta.jack))^2))
+print(se)
+
+
+
+#EJERCICO 5
+data(law)
+law #datos
+n <- nrow(law)
+B <- 2000 
+y<-law$LSAT
+z<-law$GPA
+theta.hat <- cor(y,z)
+print (theta.hat)
+theta.b <- numeric(B)
+#bootstrap
+for (b in 1:B) {
+  i <- sample(1:n, size = n, replace = TRUE)
+  y <- law$LSAT[i]
+  z <- law$GPA[i]
+  theta.b[b] <-cor(y,z) #estimador bootstrap
+}
+bias <- mean(theta.b) - theta.hat  #SESGO, AQUI NO AGARRA TOA LA MEDIA, YA QUE YA LA APLIQUE
+se <- sd(theta.b)
+print(list(est=theta.hat, bias = bias,
+           se = se))
+#los resultaos son, valor real, sesgo, desviacion
+#cálculos para los intervalos de confianza  bootstrap. El sesgo es muy pequeño, entonces se paega mucho al valor real
+alpha <- c(.025, .975)
+
+
+#normal
+print(theta.hat + qnorm(alpha) * sd(theta.b))
+#ya me da el el intervalo
+#basic
+print(2*theta.hat - 
+        quantile(theta.b, rev(alpha), type=1))
+
+#percentile
+print(quantile(theta.b, alpha, type=6))
+
+#####PARTE FACIL PARA LOS INTERVALOS
+data(law, package = "bootstrap")
+
+theta.boot <- function(dat, ind) {
+  #función para calcular el estadístico
+  y <- dat[ind, 1]
+  z <- dat[ind, 2]
+  cor(y,z)
+}
+
+y<-law$LSAT
+z<-law$GPA
+dat <- cbind(y, z)
+boot.obj <- boot(dat, statistic = theta.boot, R = 2000)
+
+print(boot.obj)#da la estimaciond e la muestra original
+print(boot.ci(boot.obj,
+              type = c("basic", "norm", "perc")))#ya da todo los intervalos
+
+
