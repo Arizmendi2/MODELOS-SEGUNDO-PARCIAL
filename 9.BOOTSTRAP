@@ -1,0 +1,165 @@
+#BOOTSTRAP
+install.packages("bootstrap")
+library("bootstrap")
+print(cor(law$LSAT,law$GPA))#correlación muestral de la muestra
+print(cor(law82$LSAT,law82$GPA))#correlación muestral de la población
+
+#calcular la estimación bootstrap del error estándar de la correlación muestral.
+B <- 200 #número de réplicas
+n <- nrow(law) #tamaño de la muestra
+R <- numeric(B) #almacenamiento de réplicas de las estimaciones
+
+#estimación bootstrap del error estándar de R
+set.seed(21)
+for (b in 1:B) {
+  i <- sample(x = 1:n, size = n, replace = TRUE) #se van haciendo las submuestras
+  LSAT <- law$LSAT[i]
+  GPA <- law$GPA[i]
+  R[b]= cor(LSAT,GPA)
+}
+#salida
+print(se.R<-sd(R))#es la desvicion de la correlacion. es como varian entre 
+#los valores gnerados y sus medias, que tan alejandos estan unos de los 
+#otros, esperamos una varainza pequeña
+
+hist(R,freq =FALSE )
+#el mayor cumulo esta netre .7 y .8, ya que la correlacion de la muestra original estaba
+#en esos valores, por eso la mayoria de los valores caís alli. 
+
+#####Ejemplo 2#####
+library(bootstrap)
+theta.hat <- cor(law$LSAT, law$GPA)#correlación muestral
+
+#estimación bootstrap del sesgo
+B <- 2000   #número de réplicas bootstrap
+n <- nrow(law) #tamaño de la muestra original
+theta.b <- numeric(B)
+
+set.seed(123)
+for (b in 1:B) {
+  i <- sample(1:n, size = n, replace = TRUE)
+  LSAT <- law$LSAT[i]
+  GPA <- law$GPA[i]
+  theta.b[b] <- cor(LSAT, GPA)#correlacion entre las muestras obtenidas
+}
+bias <- mean(theta.b - theta.hat) # ES EL SESGO
+bias
+#como fue negativa, es que tenemos una muestra mas pequeña que mi valor real,
+#es decir esta sub-estimando(por abajo del valor real)
+#si fuera positivo estaría sobre-estimando el valor real. 
+
+######Ejemplo 3#####
+#Estimación de intervalos de confianza
+data(patch, package = "bootstrap")
+patch #datos
+
+n <- nrow(patch)  #tamaño de la muestra
+B <- 2000 #número de réplicas bootstrap
+theta.b <- numeric(B)
+theta.hat <- mean(patch$y) / mean(patch$z) #EL ESTIMADOR DE INTERES
+
+#bootstrap
+for (b in 1:B) {
+  i <- sample(1:n, size = n, replace = TRUE)
+  y <- patch$y[i]
+  z <- patch$z[i]
+  theta.b[b] <- mean(y) / mean(z) #estimador bootstrap
+}
+bias <- mean(theta.b) - theta.hat #SESGO, AQUI NO AGARRA TOA LA MEDIA, YA QUE YA LA APLIQUE
+se <- sd(theta.b)
+print(list(est=theta.hat, bias = bias,
+           se = se))
+#los resultaos son, valor real, sesgo, desviacion
+#cálculos para los intervalos de confianza  bootstrap. El sesgo es muy pequeño, entonces se paega mucho al valor real
+alpha <- c(.025, .975)
+
+#normal
+print(theta.hat + qnorm(alpha) * sd(theta.b))
+#ya me da el el intervalo
+#basic
+print(2*theta.hat - 
+        quantile(theta.b, rev(alpha), type=1))
+
+#percentile
+print(quantile(theta.b, alpha, type=6))
+
+hist(theta.b, freq=FALSE)
+abline(v=-0.2688330, col="red")
+abline(v=0.1262208, col="red")
+#la F(A), DICE que el intervalo tiene que ir de -.2 a 2, pero aui se sale, mas a la izq, 
+#vemos que no es tan buena 
+#### Otra forma, usando la paquetería boot
+install.packages("boot")
+library(boot)       #for boot and boot.ci
+data(patch, package = "bootstrap")
+
+theta.boot <- function(dat, ind) {
+  #función para calcular el estadístico
+  y <- dat[ind, 1]
+  z <- dat[ind, 2]
+  mean(y) / mean(z)
+}
+
+y <- patch$y
+z <- patch$z
+dat <- cbind(y, z)
+boot.obj <- boot(dat, statistic = theta.boot, R = 2000)
+
+print(boot.obj)#da la estimaciond e la muestra original
+print(boot.ci(boot.obj,
+              type = c("basic", "norm", "perc")))#ya da todo los intervalos
+
+
+### Ejemplo 4 (Intervalo de Confianza Bootstrap estudentizado)
+
+library(boot)       #para las funciones boot y boot.ci
+data(patch, package = "bootstrap")
+
+dat <- cbind(patch$y, patch$z)
+
+
+set.seed(123)
+stat <- function(dat) {
+  mean(dat[, 1]) / mean(dat[, 2]) } # el valor teorico pora el perámetro
+ci <- boot.t.ci(dat, statistic = stat, B=2000, R=200)
+print(ci) # nos da el intervalo de ocnfianza a un nivel del 95%
+
+
+#El siguiente algorimo proporciona una función pra calcular un 
+#IC bootstrap estudentizado, el nivel de confianza por default es del
+#95%, el número de réplicas es 500 y el número de réplicas para estimar
+#el error estándar son 100
+# es el algoritmo como tal de la pag. 25
+boot.t.ci <-
+  function(x, B = 500, R = 100, level = .95, statistic){ #X son los numeros de las muestras, la R es para las recplicas del error estandar, y pues el estadistico, ya seria que que nos pidieran
+    #calcular el IC bootstrap estudentizado 
+    x <- as.matrix(x);  n <- nrow(x)
+    stat <- numeric(B); se <- numeric(B)
+    #seria un boot dentro de otro boot
+    boot.se <- function(x, R, f) {
+      #función local para calcular la estimación bootstrap
+      # del error estándar para la estadística f(x)
+      x <- as.matrix(x); m <- nrow(x)
+      th <- replicate(R, expr = {
+        i <- sample(1:m, size = m, replace = TRUE) #se hace la muestra
+        f(x[i, ])
+      })
+      return(sd(th)) #para que me regrese la desviación
+    }
+    
+    for (b in 1:B) {
+      j <- sample(1:n, size = n, replace = TRUE)
+      y <- x[j, ]
+      stat[b] <- statistic(y) #se calcula estadistico de interés
+      se[b] <- boot.se(y, R = R, f = statistic)
+    }
+    stat0 <- statistic(x)
+    t.stats <- (stat - stat0) / se #bth réplica del del estadístico t, ya es la etimacion, que es la diferncia netre las estimaciones dividida entre el error estandar
+    se0 <- sd(stat)
+    alpha <- 1 - level #definir nivel de significancia
+    Qt <- quantile(t.stats, c(alpha/2, 1-alpha/2), type = 1) # se generan los cuantiles
+    names(Qt) <- rev(names(Qt))
+    CI <- rev(stat0 - Qt * se0) # ya sería el intervalo
+  }
+
+
