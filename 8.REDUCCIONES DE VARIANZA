@@ -1,0 +1,275 @@
+#REDUCCIONES DE VARIANZA
+
+#VARIABLES ANTITETICAS
+#INTEGRACION POR MONTECARLO
+set.seed(54321)
+I <- function(x) {exp(x)/2}
+
+teor <- integrate(I,0,2)#(exp(b)-exp(a))/(b-a)
+teor<-teor$value
+teor
+
+nsim<-2000
+
+#Solución del ejercicio usando integración montecarlo, AQUI SE ASUME INDEPENDENCIA
+g<-function(x)(exp(2*x)) #YA SE PONE LA MONTECARLO
+x1<-g(runif(nsim))
+
+theta1<-mean(x1)
+theta1
+
+#media de simulaciones hasta nsim, SON LOS PROMEDIOS ACUMULADOS
+estint1 <- cumsum(x1)/(1:nsim)
+
+##usando variables antitéticas
+u <- runif(nsim%/%2)#es el numero de simulaciones, k=2, la mitad es U Y LA OTRA ES 1-U
+#generamos a u y 1-u que se sabe están correlacionadas negativamente
+u<- matrix(c(u,1-u),nrow=2,byrow=TRUE)#se genera la matriz
+fx <- apply(u, 1, g)#ya se mente con la función monete carlo, es 1 porque la aplicacion es por renglones, 
+#si fuera el 2, es porq es por columnas.
+mean(fx) #estimación usando variables antitéticas
+estint2 <- cumsum(fx)/(1:nsim)
+#Gráfico de simulaciones
+plot(estint2, type="l",ylab = "media de simulaciones") 
+lines(estint1,col="red")
+abline(h=teor, lty=2,col="blue" )
+#la negra es las simulaciones con las antiteticas
+#la roja es con las de independencia
+#la linea azul es el valor real de la integral
+#al principo se hace volatil, pero al aumentar el no. de simulaciones se hace constantes, la que
+#converge mas rapido es la negra, que son las de las variables antiteticas
+###comparación de varianzas, esperamos que las varinzas con indep sean mayores a los que no se asume indep
+(var1<-var(x1))
+(var2<-(1/4)*(var(fx[,1])+var(fx[,2])+2*cov(fx[,1],fx[,2])))
+
+#reducción
+(red <- ((var1 - var2) / var1)*100)
+
+
+
+#densidad Rayleigh
+fd<-function(x){(x / sigma^2) * exp(-x^2 / (2*sigma^2))}
+
+nsim<-1000
+
+sigma<-2
+set.seed(54321)
+#Simulación empleando el método de la transformada inversa
+u<-runif(nsim)
+rayleigh <- sigma * sqrt(-2 * log(u))
+
+#Simulación empleando el método de la transformada inversa
+#considerando variables correlacionadas negativamente
+u <- runif(nsim%/%2)
+fx_aprox<-function(x) sigma * sqrt(-2 * log(x))
+
+#u y 1-u
+u<- matrix(c(u,1-u),nrow=2,byrow=TRUE)
+x_ap <- apply(u, 1, fx_aprox)
+
+###comparación de varianzas
+(var1<-var(rayleigh))#asumiendo independencia
+(var2<-(1/4)*(var(x_ap[,1])+var(x_ap[,2])-2*cov(x_ap[,1],x_ap[,2])))#no independencia
+
+#reducción
+(red <- ((var1 - var2) / var1)*100)
+
+#Datos simulados con u y 1-u
+
+
+###METODO VARIABLES DE CONTROL###
+
+##Ejercicio 1####
+m <- 10000 #num simulaciones
+a <- - ((3-exp(1))/2)/(1/12) #valor de c*
+U <- runif(m)
+T1 <- exp(U)                  #Integración MC  se difinio a X=e a la u
+T2 <- exp(U) + a*(U - 1/2)  #variable control
+var(T2)
+mean(T1)
+mean(T2)
+(var(T1) - var(T2)) / var(T1)
+
+
+#########################################
+##Ejercicio 2##
+
+ a <- 0; b <- 2 # asumir que x~U(0,2)
+teor <- (exp(b)-exp(a))/(b-a) #es el valor esperado del auniforme, es el valor de la integral
+teor#valor teórico, el de hacer la integral
+
+set.seed(54321)
+nsim <- 1000
+u <- runif(nsim, a, b)# aqui en la uniforme 0,2, si lo le ponemos toma la 0,1
+expu <- exp(u)
+mean(expu) #resultado usando simulación MC
+
+plot(u, expu)
+reg <- lm(expu ~ u)$coef #aqui esta la regresion entre las variables de X y la de la variable control
+reg[2] ### estimación de c* usando regresión
+abline(reg, col='blue')
+
+reg[1]+reg[2] #aprox de la integral por el método variables control, aqui 
+#reg(2), seria multiplicado por la media pero la media de la U(0,2) ES 1
+expuc <- expu - reg[2]*(u-1)#otra forma de obtener la aproximación
+mean(expuc)
+
+100*(var(expu)-var(expuc))/var(expu)# % de reducción de varianza
+
+##############################################
+### Ejercicio 3
+g <- function(u)  #la varible control
+  exp(-.5)/(1+u^2)
+
+f <- function(u)
+  exp(-u)/(1+u^2)
+
+set.seed(510)
+u <- runif(10000)
+B <- g(u)
+A <- f(u)
+
+cor(A, B)
+a <- -cov(A,B) / var(B)    #estimación de c*
+a
+
+m <- 100000
+u <- runif(m)
+T1 <- f(u)  #por monte carlo
+T2 <- T1 + a * (g(u) - exp(-.5)*pi/4) #por varibel de control
+
+c(mean(T1), mean(T2))
+c(var(T1), var(T2))
+(var(T1) - var(T2)) / var(T1)
+hist(x_ap,freq = F)#las antiteticas
+curve(fd(x),add=T)#la fn continua
+
+
+#MUESTREO POR IMPORTANCIA
+#Ejemplo 1
+set.seed(321)
+x<-rnorm(10^6)
+w<-dcauchy(x)/dnorm(x) #la f(x) es la cauchy y la g(y) es la normal, la cauchy es de colas mas pesadas que la normal 
+plot(cumsum(w*(x>2)*(x<6))/cumsum(w),type="l", ylab = "Aproximación",
+     xlab = "Iteraciones")
+abline(a=pcauchy(6)-pcauchy(2),b=0,col="sienna")
+
+#Ejemplo 2
+#gráficas}
+x<-seq(0,1,0.01)#valores de x que van de 0 a 1  en intervalos de 0.01
+w<-2
+f1<-exp(-x)
+h<-exp(-x)/(1+x^2)
+f2<-exp(-x)/(1-exp(-1))
+f3<-4/((1+x^2)*pi)
+
+plot(x,h,type="l",main="",ylab="",ylim=c(0,3),lwd=w,col=1)
+lines(x,h/h,lty=2,lwd=w,col=2)
+lines(x,f1,lty=3,lwd=w,col=3)
+lines(x,f2,lty=4,lwd=w,col=4)
+lines(x,f3,lty=5,lwd=w,col=5)
+legend("topright",cex=0.8,legend=c("h",0:3),col=1:5,lty=1:5,lwd=w)
+#queremso la linea de color negro
+#empezamos con la simulación
+m<-10000
+theta.hat<-desves<-numeric(4)
+
+#definimos la función a integrar
+h<-function(x){
+  exp(-x-log(1+x^2))*(x>0)*(x<1)
+}
+
+
+#Empezamos con los cálculos para las diferentes distribuciones
+
+
+#Note que todas las distribuciones candidatas a función 
+#de importancia son positivas en el conjunto 0<x<1
+
+x<-runif(m) #usando f0
+hg<-h(x)
+theta.hat[1]<-mean(hg)
+desves[1]<-sd(hg)
+
+x<-rexp(m,1) #usando f1
+hg<-h(x)/exp(-x)
+theta.hat[2]<-mean(hg)
+desves[2]<-sd(hg)
+
+u<-runif(m)#usando f3, método de la transformada inversa
+x<- -log(1-u*(1-exp(-1))) # checar de tarea
+hg<-h(x)/(exp(-x)/(1-exp(-1)))
+theta.hat[3]<-mean(hg)
+desves[3]<-sd(hg)
+
+u<-runif(m)#usando f4, método de la transformada inversa
+x<- tan(pi*u/4) }    #checar de tarea
+hg<-h(x)/(4/((1+x^2)*pi))
+theta.hat[4]<-mean(hg)
+desves[4]<-sd(hg)
+
+rbind(theta.hat,desves) #Note que la función f2 es la que menor varianza presenta
+
+
+
+#CONDICIONAMIENTO
+#valor real de la integral
+pi/4
+
+#Creamos la muestra de X e Y 
+set.seed(321)
+x<- runif(10^5,-1,1)
+y<- runif(10^5,-1,1)
+plot(x,y)
+munif1<- cbind(x,y)
+
+#seleccionamos los puntos en el
+#interior del círculo
+munif2<-munif1[x^2+y^2<1,]
+points(munif2,col="red")
+
+#estimación de la integral usando 
+#las muestras generadas
+prob.est<-nrow(munif2)/nrow(munif1)
+prob.est
+
+
+#como función del número de puntos
+estpi<-function(n)
+{
+  x<- runif(n,-1,1)
+  y<- runif(n,-1,1)
+  munif1<- cbind(x,y)
+  munif2<-munif1[x^2+y^2<1,]
+  prob.est<-nrow(munif2)/nrow(munif1)
+}
+
+#realizamos 200 estimaciones con n=1000 puntos para cada muestra de x e y
+r<-vector()
+for(i in 1:200)
+{
+  r[i]<-estpi(1000)
+}
+plot(r, type="l")
+abline(h=pi/4, col="red")
+
+###simulación empleando condicionamiento x|y
+muesY<-matrix(nrow=1000,ncol=200)
+for(i in 1:200)
+{
+  muesY[,i]<-sqrt(1-(runif(1000,-1,1)^2))
+}
+prob.est2<-apply(muesY,2,mean)
+
+
+#comparación de procedimientos
+#Gráfico
+plot(r, type="l",lwd=2)
+abline(h=pi/4, col="red",lwd=2)
+lines(prob.est2,col="red",lwd=2)
+
+#valores
+mean(r)
+mean(prob.est2)
+var(r)
+var(prob.est2)
